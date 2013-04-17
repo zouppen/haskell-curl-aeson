@@ -49,6 +49,7 @@ runHttpJson method url maybeContent extraOpts = do
   o <- p
   o .: s
 
+-- Precedence should be higher than >> and >>= but lower than ++
 infixl 4 ...
 
 -- | Single cookie of given key and value.
