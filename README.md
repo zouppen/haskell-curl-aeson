@@ -53,8 +53,8 @@ Then just install this:
 ### Other
 
 Install and configure
-[Haskell Platform](http://www.haskell.org/platform/). To fetch all the
-requirements and install this library, run
+[Haskell Platform](http://www.haskell.org/platform/). Then, fetch all the
+requirements and install this library by running:
 
     cabal update
 	cabal install
