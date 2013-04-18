@@ -115,7 +115,7 @@ instance Exception HttpJsonException
 
 -- $use
 --
--- To get bid and ask levels from a Bitcoin market:
+-- To get bid and ask levels from a Bitcoin exchange using a public API:
 -- 
 -- @{-\# LANGUAGE OverloadedStrings #-}
 --import Control.Applicative

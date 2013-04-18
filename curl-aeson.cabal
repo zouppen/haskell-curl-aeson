@@ -19,6 +19,7 @@ license:       BSD3
 license-file:  LICENSE
 author:        Joel Lehtonen
 maintainer:    joel.lehtonen+curlaeson@iki.fi
+homepage:      https://github.com/zouppen/haskell-curl-aeson
 build-type:    Simple
 cabal-version: >= 1.2
 
