@@ -39,7 +39,7 @@ ticker = runHttpJson "GET" "https://bitcoin-central.net/api/v1/ticker/eur" noDat
 
 ## Installation
 
-## On Ubuntu and Debian
+### On Ubuntu and Debian
 
 Starting from Ubuntu 12.04 and Debian wheezy, all the dependencies are
 found from the repositories:
@@ -50,7 +50,7 @@ Then just install this:
 
     cabal install
 
-## Other
+### Other
 
 Install and configure
 [Haskell Platform](http://www.haskell.org/platform/). To fetch all the
