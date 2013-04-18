@@ -5,7 +5,7 @@
 This is a library for communicating with JSON over HTTP connection.
 It supports rich set of HTTP connectivity features provided by
 [curl](https://github.com/galoisinc/curl) library combined to the
-performance and elegancy of [aeson](https://github.com/bos/aeson).
+performance and elegance of [aeson](https://github.com/bos/aeson).
 
 Author: Joel Lehtonen <joel.lehtonen+curlaeson@iki.fi>
 
@@ -66,7 +66,7 @@ requirements and install this library by running:
 Following the convention of Haskell community, this library is
 licensed under the terms of
 [BSD 3-clause license](https://en.wikipedia.org/wiki/BSD_licenses#3-clause_license_.28.22Revised_BSD_License.22.2C_.22New_BSD_License.22.2C_or_.22Modified_BSD_License.22.29).
-Personally I prefer GPLv3, but this library is so simple enough to be
+Personally I prefer GPLv3, but this library is simple enough to be
 released with non-[copyleft](https://en.wikipedia.org/wiki/Copyleft)
 license.
 
