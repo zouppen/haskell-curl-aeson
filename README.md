@@ -7,6 +7,8 @@ It supports rich set of HTTP connectivity features provided by
 [curl](https://github.com/galoisinc/curl) library combined to the
 performance and elegancy of [aeson](https://github.com/bos/aeson).
 
+Author: Joel Lehtonen <joel.lehtonen+curlaeson@iki.fi>
+
 This library is at its best when communicating with simple,
 non-standardized JSON interfaces. If you are implementing JSON-RPC
 compliant client or server, take a look at
