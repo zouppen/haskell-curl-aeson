@@ -1,14 +1,19 @@
 name:          curl-aeson
 version:       0.0.1
-synopsis:      Communicate with JSON over HTTP
+synopsis:      Communicate with HTTP service using JSON 
 description:   A library for communicating with JSON over HTTP connection.
 	       Supports rich set of HTTP connectivity features provided by
 	       libcurl combined to the performance and elegancy of aeson.
 	       .
-	       All HTTP methods are supported. Instances of ToJSON and
-	       FromJSON typeclasses can be transferred via this library.
+	       All HTTP methods are supported. Instances of 'ToJSON' and
+	       'FromJSON' typeclasses can be transferred via this library.
 	       Session cookies and other HTTP options may be passed to libcurl
 	       if needed.
+	       .
+	       This library is at its best when communicating with simple,
+	       non-standardized JSON interfaces. If you are implementing
+	       JSON-RPC compliant client or server, take a look at
+	       <http://hackage.haskell.org/package/jmacro-rpc>.
 category:      Network, Web, JSON
 license:       BSD3
 license-file:  LICENSE
@@ -29,4 +34,4 @@ library
 
 source-repository head
   type: git
-  location: git://github.com/zouppen/http-json
+  location: git://github.com/zouppen/haskell-curl-aeson.git
