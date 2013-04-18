@@ -43,8 +43,8 @@ ticker = runHttpJson "GET" "https://bitcoin-central.net/api/v1/ticker/eur" noDat
 
 ### On Ubuntu and Debian
 
-Starting from Ubuntu 12.04 and Debian wheezy, all the dependencies are
-found from the repositories:
+Starting from Ubuntu 12.04 and Debian wheezy, all dependencies are
+found from repositories:
 
     sudo apt-get install libghc-aeson-dev libghc-curl-dev cabal-install
 
