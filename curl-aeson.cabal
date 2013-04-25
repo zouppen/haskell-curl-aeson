@@ -1,5 +1,5 @@
 name:          curl-aeson
-version:       0.0.1
+version:       0.0.3
 synopsis:      Communicate with HTTP service using JSON 
 description:   A library for communicating with JSON over HTTP connection.
 	       Supports rich set of HTTP connectivity features provided by
