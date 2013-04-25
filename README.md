@@ -22,22 +22,21 @@ exchange using
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
-import Control.Applicative
 import Control.Monad
 import Data.Aeson
 import Network.Curl.Aeson
 
-data Ticker = Ticker { bid :: Double
-                     , ask :: Double
-                     } deriving (Show)
-
-instance FromJSON Ticker where
-    parseJSON (Object o) = Ticker <$> o .: "bid" <*> o .: "ask"
-    parseJSON _ = mzero
-
-ticker :: IO Ticker
-ticker = runHttpJson "GET" "https://bitcoin-central.net/api/v1/ticker/eur" noData []
+ticker :: IO (Double,Double)
+ticker = curlAesonGetWith p "https://bitcoin-central.net/api/v1/ticker/eur"
+  where
+    p (Object o) = do
+      bid <- o .: "bid"
+      ask <- o .: "ask"
+      return (bid,ask)
+    p _ = mzero
 ```
+
+You may find more examples from package documentation.
 
 ## Installation
 
