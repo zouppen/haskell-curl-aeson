@@ -15,7 +15,9 @@ module Network.Curl.Aeson
          -- $use
          
          -- * Sending HTTP request
-         runHttpJson
+         curlAesonGet
+       , curlAesonGetWith
+       , curlAeson
          -- * Helper functions
        , cookie
        , rawJson
@@ -35,6 +37,16 @@ import Data.Text (Text)
 import Data.Typeable
 import Network.Curl
 
+-- | Shorthand for doing just a HTTP GET request and parsing the output to
+-- any FromJSON instance.
+curlAesonGet :: (FromJSON a) => URLString -> IO a
+curlAesonGet = curlAesonGetWith parseJSON
+
+-- | Shorthand for doing just a HTTP GET request and parsing the
+-- output with given parser /p/.
+curlAesonGetWith :: (Value -> Parser a) -> URLString -> IO a
+curlAesonGetWith p url = curlAeson p "GET" url [] noData
+
 -- | Send single HTTP request.
 -- 
 -- The request automatically has Content-type: application/json
@@ -44,20 +56,28 @@ import Network.Curl
 -- 
 -- If you need authentication, you need to pass session cookie or
 -- other means of authentication tokens via 'CurlOption' list.
-runHttpJson :: (ToJSON a,FromJSON b)
-               => String       -- ^ Request method
-               -> URLString    -- ^ Request URL
-               -> Maybe a      -- ^ JSON data to send, or Nothing when
-                               -- sending request without any content.
-               -> [CurlOption] -- ^ Session cookies, or other cURL
-                               -- options. Use empty list if you don't
-                               -- need any.
-               -> IO b         -- ^ Received JSON data
-runHttpJson method url maybeContent extraOpts = do
+curlAeson ::
+  (ToJSON a)
+  => (Value -> Parser b) -- ^ Parser for response. Use 'parseJSON' if
+                         -- you like want to use FromJSON instance or
+                         -- 'pure' if you want it in AST format.
+  -> String              -- ^ Request method
+  -> URLString           -- ^ Request URL
+  -> [CurlOption]        -- ^ Session cookies, or other cURL
+                         -- options. Use empty list if you don't need
+                         -- any.
+  -> Maybe a             -- ^ JSON data to send, or Nothing when
+                         -- sending request without any content.
+  -> IO b                -- ^ Received JSON data
+curlAeson parser method url extraOpts maybeContent = do
   (curlCode,received) <- curlGetString url curlOpts
   when (curlCode /= CurlOK) $ throw HttpJsonException{errorMsg="HTTP error",..}
-  maybe (throw HttpJsonException{errorMsg="JSON parsing has failed",..}) return
-    (decode $ pack received)
+  let ast = case decode $ pack received of
+        Nothing -> throw HttpJsonException{errorMsg="JSON parsing failed",..}
+        Just x  -> x
+  return $ case parseEither parser ast of
+    Left errorMsg -> throw HttpJsonException{..}
+    Right x -> x
   where
     curlOpts = commonOpts++dataOpts++extraOpts
     commonOpts = [CurlCustomRequest method]
@@ -115,7 +135,26 @@ instance Exception HttpJsonException
 
 -- $use
 --
--- To get bid and ask levels from a Bitcoin exchange using a public API:
+-- To get bid and ask levels as a pair from a Bitcoin exchange using its public
+-- API:
+--
+-- @{-\# LANGUAGE OverloadedStrings #-}
+--import Control.Monad
+--import Data.Aeson
+--import Network.Curl.Aeson
+--
+--ticker :: 'IO' ('Double','Double')
+--ticker = 'curlAesonGetWith' p \"https:\/\/bitcoin-central.net\/api\/v1\/ticker\/eur\"
+--  where
+--    p ('Object' o) = do
+--      bid <- o '.:' \"bid\"
+--      ask <- o '.:' \"ask\"
+--      'return' (bid,ask)
+--    p _ = 'mzero'
+-- @
+-- 
+-- The same as above, but we define our own data type which is an
+-- instance of FromJSON:
 -- 
 -- @{-\# LANGUAGE OverloadedStrings #-}
 --import Control.Applicative
@@ -131,6 +170,6 @@ instance Exception HttpJsonException
 --    parseJSON ('Object' o) = Ticker '<$>' o '.:' \"bid\" '<*>' o '.:' \"ask\"
 --    parseJSON _ = 'mzero'
 --
---ticker :: IO Ticker
---ticker = 'runHttpJson' \"GET\" \"https:\/\/bitcoin-central.net\/api\/v1\/ticker\/eur\" noData []
+--ticker :: 'IO' Ticker
+--ticker = 'curlAesonGet' \"https:\/\/bitcoin-central.net\/api\/v1\/ticker\/eur\"
 -- @
