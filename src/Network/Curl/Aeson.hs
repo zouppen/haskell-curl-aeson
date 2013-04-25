@@ -24,7 +24,7 @@ module Network.Curl.Aeson
        , (...)
        , noData
          -- * Exception handling
-       , HttpJsonException(..)
+       , CurlAesonException(..)
        ) where
 
 import Control.Exception
@@ -49,7 +49,7 @@ curlAesonGetWith p url = curlAeson p "GET" url [] noData
 
 -- | Send single HTTP request.
 -- 
--- The request automatically has Content-type: application/json
+-- The request automatically has @Content-type: application/json@
 -- header if you pass any data. This function is lenient on response
 -- content type: everything is accepted as long as it is parseable
 -- with 'decode'.
@@ -71,12 +71,12 @@ curlAeson ::
   -> IO b                -- ^ Received JSON data
 curlAeson parser method url extraOpts maybeContent = do
   (curlCode,received) <- curlGetString url curlOpts
-  when (curlCode /= CurlOK) $ throw HttpJsonException{errorMsg="HTTP error",..}
+  when (curlCode /= CurlOK) $ throw CurlAesonException{errorMsg="HTTP error",..}
   let ast = case decode $ pack received of
-        Nothing -> throw HttpJsonException{errorMsg="JSON parsing failed",..}
+        Nothing -> throw CurlAesonException{errorMsg="JSON parsing failed",..}
         Just x  -> x
   return $ case parseEither parser ast of
-    Left errorMsg -> throw HttpJsonException{..}
+    Left errorMsg -> throw CurlAesonException{..}
     Right x -> x
   where
     curlOpts = commonOpts++dataOpts++extraOpts
@@ -119,19 +119,19 @@ rawJson :: String -> Maybe Value
 rawJson = decode . pack
 
 -- |To avoid ambiguity in type checker you may pass this value instead
--- of Nothing to 'runHttpJson'.
+-- of Nothing to 'curlAeson'.
 noData :: Maybe Value
 noData = Nothing
 
 -- | This exception is is thrown when Curl doesn't finish cleanly or
 -- the parsing of JSON response fails.
-data HttpJsonException = HttpJsonException { url      :: URLString
-                                           , curlCode :: CurlCode
-                                           , curlOpts :: [CurlOption]
-                                           , received :: String
-                                           , errorMsg :: String
-                                           } deriving (Show, Typeable)
-instance Exception HttpJsonException
+data CurlAesonException = CurlAesonException { url      :: URLString
+                                             , curlCode :: CurlCode
+                                             , curlOpts :: [CurlOption]
+                                             , received :: String
+                                             , errorMsg :: String
+                                             } deriving (Show, Typeable)
+instance Exception CurlAesonException
 
 -- $use
 --
