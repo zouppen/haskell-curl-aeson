@@ -31,7 +31,7 @@ import Control.Exception
 import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types
-import Data.ByteString.Lazy.Char8 (pack,unpack)
+import Data.ByteString.Lazy.UTF8 (fromString,toString)
 import Data.Maybe
 import Data.Text (Text)
 import Data.Typeable
@@ -52,7 +52,7 @@ curlAesonGetWith p url = curlAeson p "GET" url [] noData
 -- The request automatically has @Content-type: application/json@
 -- header if you pass any data. This function is lenient on response
 -- content type: everything is accepted as long as it is parseable
--- with 'decode'.
+-- with 'decode'. HTTP payload is expected to be UTF-8 encoded.
 -- 
 -- If you need authentication, you need to pass session cookie or
 -- other means of authentication tokens via 'CurlOption' list.
@@ -72,7 +72,7 @@ curlAeson ::
 curlAeson parser method url extraOpts maybeContent = do
   (curlCode,received) <- curlGetString url curlOpts
   when (curlCode /= CurlOK) $ throw CurlAesonException{errorMsg="HTTP error",..}
-  let ast = case decode $ pack received of
+  let ast = case decode $ fromString received of
         Nothing -> throw CurlAesonException{errorMsg="JSON parsing failed",..}
         Just x  -> x
   return $ case parseEither parser ast of
@@ -83,7 +83,7 @@ curlAeson parser method url extraOpts maybeContent = do
     commonOpts = [CurlCustomRequest method]
     dataOpts = case maybeContent of
       Nothing -> []
-      Just a  -> [CurlPostFields [unpack $ encode a]
+      Just a  -> [CurlPostFields [toString $ encode a]
                  ,CurlHttpHeaders ["Content-type: application/json"]
                  ]
 
@@ -116,7 +116,7 @@ cookie key value = CurlCookie $ key++"="++value
 -- | Useful for just giving the JSON as string when it is static
 -- anyway and doesn't need to be programmatically crafted.
 rawJson :: String -> Maybe Value
-rawJson = decode . pack
+rawJson = decode . fromString
 
 -- |To avoid ambiguity in type checker you may pass this value instead
 -- of Nothing to 'curlAeson'.
