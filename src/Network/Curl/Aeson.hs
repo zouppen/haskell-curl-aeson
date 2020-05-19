@@ -95,7 +95,7 @@ curlAeson parser method url extraOpts maybeContent = do
 -- @OverloadedStrings@ language extension which enables 'Text' values
 -- to be written as string literals.
 --
--- @p ('Object' o) = 'pure' obj'...'\"glossary\"'...'\"title\"
+-- @p ('Object' o) = 'pure' o'...'\"glossary\"'...'\"title\"
 --p _ = 'mzero'
 -- @
 (...) :: FromJSON b
