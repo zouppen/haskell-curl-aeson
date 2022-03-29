@@ -31,7 +31,8 @@ import Control.Exception
 import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types
-import Data.ByteString.Lazy.UTF8 (fromString,toString)
+import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy.UTF8 (toString)
 import Data.Maybe
 import Data.Text (Text)
 import Data.Typeable
@@ -70,16 +71,16 @@ curlAeson ::
                          -- sending request without any content.
   -> IO b                -- ^ Received JSON data
 curlAeson parser method url extraOpts maybeContent = do
-  (curlCode,received) <- curlGetString url curlOpts
+  (curlCode,received) <- curlGetString_ url curlOpts
   when (curlCode /= CurlOK) $ throw CurlAesonException{errorMsg="HTTP error",..}
-  let ast = case decode $ fromString received of
+  let ast = case decode received of
         Nothing -> throw CurlAesonException{errorMsg="JSON parsing failed",..}
         Just x  -> x
   return $ case parseEither parser ast of
     Left errorMsg -> throw CurlAesonException{..}
     Right x -> x
   where
-    curlOpts = commonOpts++dataOpts++extraOpts
+    curlOpts = commonOpts <> dataOpts <> extraOpts
     commonOpts = [CurlCustomRequest method]
     dataOpts = case maybeContent of
       Nothing -> []
@@ -111,12 +112,12 @@ infixl 4 ...
 
 -- | Single cookie of given key and value.
 cookie :: String -> String -> CurlOption
-cookie key value = CurlCookie $ key++"="++value
+cookie key value = CurlCookie $ key <> "=" <> value
 
 -- | Useful for just giving the JSON as string when it is static
 -- anyway and doesn't need to be programmatically crafted.
-rawJson :: String -> Maybe Value
-rawJson = decode . fromString
+rawJson :: ByteString -> Maybe Value
+rawJson = decode
 
 -- |To avoid ambiguity in type checker you may pass this value instead
 -- of Nothing to 'curlAeson'.
@@ -128,7 +129,7 @@ noData = Nothing
 data CurlAesonException = CurlAesonException { url      :: URLString
                                              , curlCode :: CurlCode
                                              , curlOpts :: [CurlOption]
-                                             , received :: String
+                                             , received :: ByteString
                                              , errorMsg :: String
                                              } deriving (Show, Typeable)
 instance Exception CurlAesonException
