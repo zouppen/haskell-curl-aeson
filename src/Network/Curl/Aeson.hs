@@ -23,6 +23,8 @@ module Network.Curl.Aeson
          -- * Generic cURL request
        , curlAesonRaw
          -- * Helpers for working with raw requests
+       , jsonPayload
+       , binaryPayload
        , binaryResponse
        , valueResponse
        , jsonResponse
@@ -31,6 +33,8 @@ module Network.Curl.Aeson
        , rawJson
        , (...)
        , noData
+         -- * Types
+       , Payload(..)
        , ResponseParser
          -- * Exception handling
        , CurlAesonException(..)
@@ -43,6 +47,7 @@ import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types
 import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as B
 import Data.Maybe
 import Data.Text (Text)
 import Data.Typeable
@@ -87,9 +92,8 @@ curlAesonCustomWith
                          -- sending request without any content.
   -> IO b                -- ^ Received and parsed data
 curlAesonCustomWith parser method url extraOpts maybeValue =
-  curlAesonRaw method url
-  (jsonOpts <> extraOpts)
-  (encode <$> maybeValue)
+  curlAesonRaw method url extraOpts
+  (maybeValue >>= jsonPayload)
   (\x -> eitherDecode x >>= parseEither parser)
 
 {-# DEPRECATED curlAeson "Use customAesonCustomWith instead" #-}
@@ -117,31 +121,35 @@ curlAesonCustom ::
                          -- sending request without any content.
   -> IO b                -- ^ Received and parsed data
 curlAesonCustom method url extraOpts maybeValue =
-  curlAesonRaw method url
-  (jsonOpts <> extraOpts)
-  (encode <$> maybeValue)
+  curlAesonRaw method url extraOpts
+  (maybeValue >>= jsonPayload)
   eitherDecode
 
--- |Sends raw cURL request with a possible payload and collects the output.
+-- |Sends raw cURL request with a possible payload and collects the
+-- output. When /payload/ is given, cURL options CurlReadFunction and
+-- CurlUpload are set and HTTP headers Content-Length and Content-Type
+-- are appended.
 curlAesonRaw
   :: String              -- ^ Request method
   -> URLString           -- ^ Request URL
-  -> [CurlOption]        -- ^ Curl options. This function sets
-                         -- CurlCustomRequest and CurlReadFunction for
-                         -- you, nothing more.
-  -> Maybe ByteString    -- ^ Request body payload.
+  -> [CurlOption]        -- ^ Extra curl options.
+  -> Maybe Payload       -- ^ Request body payload, if any.
   -> ResponseParser a    -- ^ Parser function for the response such as 'eitherDecode'
   -> IO a                -- ^ Received and parsed data
 curlAesonRaw method url userOpts maybePayload parser = do
-  -- Prepare headers
+  -- Prepare the upload
   putOpts <- case maybePayload of
-    Nothing -> pure []
-    Just a -> do
-      readFunc <- mkReadFunctionLazy a
-      pure [CurlReadFunction readFunc]
-  let curlOpts = [CurlCustomRequest method] <> putOpts <> userOpts
+    Nothing -> pure userOpts
+    Just Payload{..} -> do
+      readFunc <- mkReadFunctionLazy payload
+      pure $ CurlReadFunction readFunc : CurlUpload True : mergeHeaders
+        [ "Content-Length: " <> show (B.length payload)
+        , "Content-Type: " <> contentType
+        ] userOpts
+  -- Add request method
+  let curlOpts = CurlCustomRequest method : putOpts
   -- Perform the request
-  (curlCode, received) <- curlGetString_ url $ curlOpts
+  (curlCode, received) <- curlGetString_ url curlOpts
   when (curlCode /= CurlOK) $
     throwIO CurlAesonException{parseError = Nothing, ..}
   -- Trying to parse
@@ -149,9 +157,24 @@ curlAesonRaw method url userOpts maybePayload parser = do
     Left e  -> throwIO CurlAesonException{parseError = Just e, ..}
     Right x -> pure x
 
--- |HTTP JSON request often needs these options.
-jsonOpts :: [CurlOption]
-jsonOpts = [CurlHttpHeaders ["Content-type: application/json"]]
+-- |Internal tool to merge headers in a cURL option list
+mergeHeaders :: [String] -> [CurlOption] -> [CurlOption]
+mergeHeaders acc [] = [CurlHttpHeaders acc]
+mergeHeaders acc ((CurlHttpHeaders x):xs) = mergeHeaders (acc <> x) xs
+mergeHeaders acc (x:xs) = x:mergeHeaders acc xs 
+
+-- |Convert a value to JSON payload. This never returns Nothing.
+jsonPayload :: ToJSON a => a -> Maybe Payload
+jsonPayload a = Just Payload{..}
+  where payload = encode a
+        contentType = "application/json"
+
+-- |Just a shortcut for defining binary payloads of given media
+-- type. This never returns Nothing.
+binaryPayload :: String        -- ^Media type (MIME)
+              -> ByteString    -- ^Data
+              -> Maybe Payload -- ^Payload
+binaryPayload a b = Just $ Payload a b
 
 -- | Helper function for writing parsers for JSON objects which are
 -- not needed to be parsed completely.
@@ -202,6 +225,12 @@ jsonResponse = eitherDecode
 -- of Nothing to 'curlAesonCustom'.
 noData :: Maybe Value
 noData = Nothing
+
+-- |Holds the payload for raw sender.
+data Payload = Payload
+  { contentType :: String      -- ^Content MIME type
+  , payload     :: ByteString  -- ^Data
+  } deriving (Show)
 
 -- | This exception is is thrown when Curl doesn't finish cleanly or
 -- the parsing of JSON response fails.
