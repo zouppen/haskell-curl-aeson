@@ -27,7 +27,7 @@ module Network.Curl.Aeson
        , rawJson
        , (...)
        , noData
-       , CurlAesonParser
+       , ResponseParser
          -- * Exception handling
        , CurlAesonException(..)
          -- * Deprecated functions
@@ -126,7 +126,7 @@ curlAesonRaw
                          -- CurlCustomRequest and CurlReadFunction for
                          -- you, nothing more.
   -> Maybe ByteString    -- ^ Request body payload.
-  -> CurlAesonParser a   -- ^ Parser function for the response such as 'eitherDecode'
+  -> ResponseParser a    -- ^ Parser function for the response such as 'eitherDecode'
   -> IO a                -- ^ Received and parsed data
 curlAesonRaw method url userOpts maybePayload parser = do
   -- Prepare headers
@@ -200,7 +200,7 @@ data CurlAesonException = CurlAesonException
 instance Exception CurlAesonException
 
 -- |Parser type from response to your data. Normally: 'eitherDecode'
-type CurlAesonParser a = ByteString -> Either String a
+type ResponseParser a = ByteString -> Either String a
 
 -- $use
 --
