@@ -30,16 +30,13 @@ mkReadFunctionLazy bs = feeder <$> newIORef (BL.toChunks bs)
 
 -- |ReadFunction for curl to feed in the payload
 feeder :: IORef [B.ByteString] -> ReadFunction
-feeder input destPtr size nitems _ = do
+feeder input dst size nitems _ = do
   -- Take next chunk
-  chunk <- atomicModifyIORef input $ takeChunk $ fromIntegral destLen
+  chunk <- atomicModifyIORef input $ takeChunk $ fromIntegral $ size*nitems
   -- Now doing the hard copying
-  if B.null chunk
-    then pure Nothing
-    else do B.unsafeUseAsCStringLen chunk $ \(srcPtr, srcLen) ->
-              B.memcpy (castPtr destPtr) (castPtr srcPtr) (fromIntegral destLen)
-            pure $ Just destLen
-  where destLen = size*nitems
+  B.unsafeUseAsCStringLen chunk rawCopy
+  pure $ Just $ fromIntegral $ B.length chunk
+  where rawCopy (src, srcLen) = B.memcpy (castPtr dst) (castPtr src) srcLen
 
 -- |Takes chunk of size 1 to /len/ bytes. In case the chunk list is
 -- empty, it returns zero-length string. May give unnecessarily short
