@@ -126,51 +126,52 @@ noData = Nothing
 
 -- | This exception is is thrown when Curl doesn't finish cleanly or
 -- the parsing of JSON response fails.
-data CurlAesonException = CurlAesonException { url      :: URLString
-                                             , curlCode :: CurlCode
-                                             , curlOpts :: [CurlOption]
-                                             , received :: ByteString
-                                             , errorMsg :: String
-                                             } deriving (Show)
+data CurlAesonException = CurlAesonException
+  { url        :: URLString    -- ^The request URI
+  , curlCode   :: CurlCode     -- ^Curl return code
+  , curlOpts   :: [CurlOption] -- ^Curl options set
+  , received   :: ByteString   -- ^Received data from the server. Before
+                               -- version 0.1 the type was 'String'.
+  , errorMsg   :: String       -- ^Error message
+  } deriving (Show)
+
 instance Exception CurlAesonException
 
 -- $use
 --
--- To get bid and ask levels as a pair from a Bitcoin exchange using its public
--- API:
+-- Let\'s simulate a service by creating a file @\/tmp\/ticker.json@
+-- with the following content: @{\"bid\":3,\"ask\":3.14}@.
 --
--- @{-\# LANGUAGE OverloadedStrings #-}
---import Control.Monad
---import Data.Aeson
---import Network.Curl.Aeson
+-- This example shows how to hand-craft the parser for the bid and ask
+-- values:
 --
---ticker :: 'IO' ('Double','Double')
---ticker = 'curlAesonGetWith' p \"https:\/\/bitcoin-central.net\/api\/v1\/ticker\/eur\"
---  where
---    p ('Object' o) = do
---      bid <- o '.:' \"bid\"
---      ask <- o '.:' \"ask\"
---      'return' (bid,ask)
---    p _ = 'mzero'
--- @
--- 
+-- > {-# LANGUAGE OverloadedStrings #-}
+-- > import Control.Monad
+-- > import Data.Aeson
+-- > import Network.Curl.Aeson
+-- >
+-- > ticker :: IO (Double,Double)
+-- > ticker = curlAesonGetWith p "file:///tmp/ticker.json"
+-- >   where
+-- >     p (Object o) = do
+-- >       bid <- o .: "bid"
+-- >       ask <- o .: "ask"
+-- >       return (bid,ask)
+-- >     p _ = mzero
+--
 -- The same as above, but we define our own data type which is an
 -- instance of FromJSON:
--- 
--- @{-\# LANGUAGE OverloadedStrings #-}
---import Control.Applicative
---import Control.Monad
---import Data.Aeson
---import Network.Curl.Aeson
 --
---data Ticker = Ticker { bid :: 'Double'
---                     , ask :: 'Double'
---                     } deriving ('Show')
---
---instance 'FromJSON' Ticker where
---    parseJSON ('Object' o) = Ticker '<$>' o '.:' \"bid\" '<*>' o '.:' \"ask\"
---    parseJSON _ = 'mzero'
---
---ticker :: 'IO' Ticker
---ticker = 'curlAesonGet' \"https:\/\/bitcoin-central.net\/api\/v1\/ticker\/eur\"
--- @
+-- > {-# LANGUAGE DeriveGeneric #-}
+-- > import GHC.Generics
+-- > import Data.Aeson
+-- > import Network.Curl.Aeson
+-- >
+-- > data Ticker = Ticker { bid :: Double
+-- >                      , ask :: Double
+-- >                      } deriving (Generic, Show)
+-- >
+-- > instance FromJSON Ticker
+-- >
+-- > ticker :: IO Ticker
+-- > ticker = curlAesonGet "file:///tmp/ticker.json"
