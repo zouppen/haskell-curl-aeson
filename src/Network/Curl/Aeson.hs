@@ -22,7 +22,11 @@ module Network.Curl.Aeson
        , curlAesonCustomWith
          -- * Generic cURL request
        , curlAesonRaw
-         -- * Helper functions
+         -- * Helpers for working with raw requests
+       , binaryResponse
+       , valueResponse
+       , jsonResponse
+         -- * Other helper functions
        , cookie
        , rawJson
        , (...)
@@ -180,7 +184,21 @@ cookie key value = CurlCookie $ key <> "=" <> value
 rawJson :: ByteString -> Maybe Value
 rawJson = decode
 
--- |To avoid ambiguity in type checker you may pass this value instead
+-- |Useful with 'curlAesonRaw' when you just need to take the binary output.
+binaryResponse :: ResponseParser ByteString
+binaryResponse = Right
+
+-- |Useful with 'curlAesonRaw' when you just want to get the JSON Value
+valueResponse :: ResponseParser Value
+valueResponse = eitherDecode
+
+-- |Just a friendly name for 'eitherDecode'. Can be used with
+-- 'curlAesonRaw' for deserializing the response using 'FromJSON'
+-- instance.
+jsonResponse :: FromJSON a => ResponseParser a
+jsonResponse = eitherDecode
+
+-- |To avoid type ambiguity you may pass this value instead
 -- of Nothing to 'curlAesonCustom'.
 noData :: Maybe Value
 noData = Nothing
