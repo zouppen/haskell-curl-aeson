@@ -18,10 +18,10 @@ mkReadFunctionLazy :: BL.ByteString -> IO ReadFunction
 mkReadFunctionLazy bs = feeder <$> newIORef (BL.toChunks bs)
 
 -- |ReadFunction for curl to feed in the payload
-feeder :: IORef [B.ByteString] -> ReadFunction --Ptr CChar -> CInt -> CInt -> Ptr () -> IO (Maybe CInt)
+feeder :: IORef [B.ByteString] -> ReadFunction
 feeder input destPtr size nitems _ = do
   -- Take next chunk
-  chunk <- atomicModifyIORef input (takeChunk $ fromIntegral destLen)
+  chunk <- atomicModifyIORef input $ takeChunk $ fromIntegral destLen
   -- Now doing the hard copying
   if B.null chunk
     then pure Nothing
@@ -30,6 +30,9 @@ feeder input destPtr size nitems _ = do
             pure $ Just destLen
   where destLen = size*nitems
 
+-- |Takes chunk of size 1 to 'len' bytes. In case the chunk list is
+-- empty, it returns zero-length string. May give unnecessarily short
+-- chunks in case of small chunks way smaller than buffer.
 takeChunk :: Int -> [B.ByteString] -> ([B.ByteString], B.ByteString)
 takeChunk len [] = ([], "")
 takeChunk len ("":xs) = takeChunk len xs
