@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, RecordWildCards #-}
+{-# LANGUAGE RecordWildCards #-}
 -- |
 -- Module    : Network.Curl.Aeson
 -- Copyright : (c) 2013, Joel Lehtonen
@@ -131,7 +131,7 @@ data CurlAesonException = CurlAesonException { url      :: URLString
                                              , curlOpts :: [CurlOption]
                                              , received :: ByteString
                                              , errorMsg :: String
-                                             } deriving (Show, Typeable)
+                                             } deriving (Show)
 instance Exception CurlAesonException
 
 -- $use

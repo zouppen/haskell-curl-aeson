@@ -34,7 +34,7 @@ source-repository head
 library
   exposed-modules:   Network.Curl.Aeson
   other-modules:     Network.Curl.Aeson.Internal
-  other-extensions:  DeriveDataTypeable, RecordWildCards, OverloadedStrings
+  other-extensions:  RecordWildCards, OverloadedStrings
   build-depends:     base ==4.*,
                      aeson >= 0.6,
                      curl >=1.3 && <1.4,
