@@ -1,20 +1,21 @@
 {-# LANGUAGE RecordWildCards #-}
 -- |
 -- Module    : Network.Curl.Aeson
--- Copyright : (c) 2013, Joel Lehtonen
+-- Copyright : (c) 2013-2022, Joel Lehtonen
 -- License   : BSD3
 --
 -- Maintainer: Joel Lehtonen <joel.lehtonen+curlaeson@iki.fi>
 -- Stability : experimental
 -- Portability: portable
 --
--- Functions for communicating with JSON over HTTP connection.
+-- Functions for communicating with JSON over HTTP, HTTPS, or any
+-- protocol supported by [cURL](https://curl.se/).
 
 module Network.Curl.Aeson
        ( -- * How to use this library
          -- $use
          
-         -- * Sending HTTP request
+         -- * cURL requests with JSON payload and response
          curlAesonGet
        , curlAesonGetWith
        , curlAeson
@@ -39,21 +40,28 @@ import Network.Curl
 import Network.Curl.Aeson.Internal
 
 -- | Shorthand for doing just a HTTP GET request and parsing the output to
--- any FromJSON instance.
-curlAesonGet :: (FromJSON a) => URLString -> IO a
+-- any 'FromJSON' instance.
+curlAesonGet :: (FromJSON a)
+  => URLString -- ^ Request URL
+  -> IO a      -- ^ Received and parsed data
 curlAesonGet = curlAesonGetWith parseJSON
 
 -- | Shorthand for doing just a HTTP GET request and parsing the
 -- output with given parser /p/.
-curlAesonGetWith :: (Value -> Parser a) -> URLString -> IO a
+curlAesonGetWith
+  :: (Value -> Parser a) -- ^Aeson parser for response. Use 'pure' if
+                         -- you want it in AST format.
+  -> URLString           -- ^Request URL
+  -> IO a                -- ^Received and parsed data
 curlAesonGetWith p url = curlAeson p "GET" url [] noData
 
--- | Send single HTTP request.
+-- | Send a single HTTP request and a custom parser.
 -- 
 -- The request automatically has @Content-type: application/json@
 -- header if you pass any data. This function is lenient on response
--- content type: everything is accepted as long as it is parseable
--- with 'decode'. HTTP payload is expected to be UTF-8 encoded.
+-- content type; everything is accepted as long as it is valid JSON
+-- and parseable with your supplied parser.
+-- HTTP payload is expected to be UTF-8 encoded.
 -- 
 -- If you need authentication, you need to pass session cookie or
 -- other means of authentication tokens via 'CurlOption' list.
@@ -96,7 +104,7 @@ curlAeson parser method url extraOpts maybeContent = do
 -- @OverloadedStrings@ language extension which enables 'Text' values
 -- to be written as string literals.
 --
--- @p ('Object' o) = 'pure' o'...'\"glossary\"'...'\"title\"
+-- @p ('Data.Aeson.Types.Internal.Object' o) = 'pure' o'...'\"glossary\"'...'\"title\"
 --p _ = 'mzero'
 -- @
 (...) :: FromJSON b
@@ -140,7 +148,9 @@ instance Exception CurlAesonException
 -- $use
 --
 -- Let\'s simulate a service by creating a file @\/tmp\/ticker.json@
--- with the following content: @{\"bid\":3,\"ask\":3.14}@.
+-- with the following content:
+--
+-- > {"bid":3,"ask":3.14}
 --
 -- This example shows how to hand-craft the parser for the bid and ask
 -- values:
@@ -160,7 +170,7 @@ instance Exception CurlAesonException
 -- >     p _ = mzero
 --
 -- The same as above, but we define our own data type which is an
--- instance of FromJSON:
+-- instance of 'FromJSON':
 --
 -- > {-# LANGUAGE DeriveGeneric #-}
 -- > import GHC.Generics

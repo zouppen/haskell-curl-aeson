@@ -1,4 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
+-- |
+-- Module    : Network.Curl.Aeson
+-- Copyright : (c) 2022, Joel Lehtonen
+-- License   : BSD3
+--
+-- Maintainer: Joel Lehtonen <joel.lehtonen+curlaeson@iki.fi>
+-- Stability : experimental
+-- Portability: portable
+--
+-- Internal support functions to get ByteString payload out of
+-- libcurl.
 module Network.Curl.Aeson.Internal where
 
 import Data.IORef
@@ -30,7 +41,7 @@ feeder input destPtr size nitems _ = do
             pure $ Just destLen
   where destLen = size*nitems
 
--- |Takes chunk of size 1 to 'len' bytes. In case the chunk list is
+-- |Takes chunk of size 1 to /len/ bytes. In case the chunk list is
 -- empty, it returns zero-length string. May give unnecessarily short
 -- chunks in case of small chunks way smaller than buffer.
 takeChunk :: Int -> [B.ByteString] -> ([B.ByteString], B.ByteString)
