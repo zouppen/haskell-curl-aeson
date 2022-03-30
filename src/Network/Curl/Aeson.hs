@@ -18,14 +18,20 @@ module Network.Curl.Aeson
          -- * cURL requests with JSON payload and response
          curlAesonGet
        , curlAesonGetWith
-       , curlAeson
+       , curlAesonCustom
+       , curlAesonCustomWith
+         -- * Generic cURL request
+       , curlAesonRaw
          -- * Helper functions
        , cookie
        , rawJson
        , (...)
        , noData
+       , CurlAesonParser
          -- * Exception handling
        , CurlAesonException(..)
+         -- * Deprecated functions
+       , curlAeson
        ) where
 
 import Control.Exception
@@ -44,7 +50,7 @@ import Network.Curl.Aeson.Internal
 curlAesonGet :: (FromJSON a)
   => URLString -- ^ Request URL
   -> IO a      -- ^ Received and parsed data
-curlAesonGet = curlAesonGetWith parseJSON
+curlAesonGet url = curlAesonCustom "GET" url [] noData
 
 -- | Shorthand for doing just a HTTP GET request and parsing the
 -- output with given parser /p/.
@@ -53,7 +59,7 @@ curlAesonGetWith
                          -- you want it in AST format.
   -> URLString           -- ^Request URL
   -> IO a                -- ^Received and parsed data
-curlAesonGetWith p url = curlAeson p "GET" url [] noData
+curlAesonGetWith p url = curlAesonCustomWith p "GET" url [] noData
 
 -- | Send a single HTTP request and a custom parser.
 -- 
@@ -61,40 +67,87 @@ curlAesonGetWith p url = curlAeson p "GET" url [] noData
 -- header if you pass any data. This function is lenient on response
 -- content type; everything is accepted as long as it is valid JSON
 -- and parseable with your supplied parser.
--- HTTP payload is expected to be UTF-8 encoded.
 -- 
 -- If you need authentication, you need to pass session cookie or
 -- other means of authentication tokens via 'CurlOption' list.
-curlAeson ::
-  (ToJSON a)
-  => (Value -> Parser b) -- ^ Parser for response. Use 'parseJSON' if
-                         -- you like want to use FromJSON instance or
+curlAesonCustomWith
+  :: (ToJSON a)
+  => (Value -> Parser b) -- ^ Aeson parser for response. Use
                          -- 'pure' if you want it in AST format.
   -> String              -- ^ Request method
   -> URLString           -- ^ Request URL
   -> [CurlOption]        -- ^ Session cookies, or other cURL
-                         -- options. Use empty list if you don't need
+                         -- options. Use 'mempty' if you don't need
                          -- any.
-  -> Maybe a             -- ^ JSON data to send, or Nothing when
+  -> Maybe a             -- ^ JSON data to send, or 'Nothing' when
                          -- sending request without any content.
-  -> IO b                -- ^ Received JSON data
-curlAeson parser method url extraOpts maybeContent = do
-  putOpts <- case maybeContent of
+  -> IO b                -- ^ Received and parsed data
+curlAesonCustomWith parser method url extraOpts maybeValue =
+  curlAesonRaw method url
+  (jsonOpts <> extraOpts)
+  (encode <$> maybeValue)
+  (\x -> eitherDecode x >>= parseEither parser)
+
+{-# DEPRECATED curlAeson "Use customAesonCustomWith instead" #-}
+-- |See type of 'curlAesonCustomWith'.
+curlAeson :: ToJSON a => (Value -> Parser b) -> String -> URLString -> [CurlOption] -> Maybe a -> IO b
+curlAeson = curlAesonCustomWith
+
+-- | Send a single cURL request.
+--
+-- The request automatically has @Content-type: application/json@
+-- header if you pass any data. This function is lenient on response
+-- content type; everything is accepted as long as 'parseJSON'
+-- succeeds.
+--
+-- If you need authentication, you need to pass session cookie or
+-- other means of authentication tokens via 'CurlOption' list.
+curlAesonCustom ::
+  (ToJSON a, FromJSON b)
+  => String              -- ^ Request method
+  -> URLString           -- ^ Request URL
+  -> [CurlOption]        -- ^ Session cookies, or other cURL
+                         -- options. Use 'mempty' if you don't need
+                         -- any.
+  -> Maybe a             -- ^ JSON data to send, or 'Nothing' when
+                         -- sending request without any content.
+  -> IO b                -- ^ Received and parsed data
+curlAesonCustom method url extraOpts maybeValue =
+  curlAesonRaw method url
+  (jsonOpts <> extraOpts)
+  (encode <$> maybeValue)
+  eitherDecode
+
+-- |Sends raw cURL request with a possible payload and collects the output.
+curlAesonRaw
+  :: String              -- ^ Request method
+  -> URLString           -- ^ Request URL
+  -> [CurlOption]        -- ^ Curl options. This function sets
+                         -- CurlCustomRequest and CurlReadFunction for
+                         -- you, nothing more.
+  -> Maybe ByteString    -- ^ Request body payload.
+  -> CurlAesonParser a   -- ^ Parser function for the response such as 'eitherDecode'
+  -> IO a                -- ^ Received and parsed data
+curlAesonRaw method url userOpts maybePayload parser = do
+  -- Prepare headers
+  putOpts <- case maybePayload of
     Nothing -> pure []
     Just a -> do
-      readFunc <- mkReadFunctionLazy $ encode a
-      pure [ CurlReadFunction readFunc
-           , CurlHttpHeaders ["Content-type: application/json"]
-           ]
-  let curlOpts = [CurlCustomRequest method] <> putOpts <> extraOpts
-  (curlCode,received) <- curlGetString_ url $ curlOpts
-  when (curlCode /= CurlOK) $ throw CurlAesonException{errorMsg="HTTP error",..}
-  let ast = case decode received of
-        Nothing -> throw CurlAesonException{errorMsg="JSON parsing failed",..}
-        Just x  -> x
-  return $ case parseEither parser ast of
-    Left errorMsg -> throw CurlAesonException{..}
-    Right x -> x
+      readFunc <- mkReadFunctionLazy a
+      pure [CurlReadFunction readFunc]
+  let curlOpts = [CurlCustomRequest method] <> putOpts <> userOpts
+  -- Perform the request
+  (curlCode, received) <- curlGetString_ url $ curlOpts
+  when (curlCode /= CurlOK) $
+    throwIO CurlAesonException{parseError = Nothing, ..}
+  -- Trying to parse
+  case parser received of
+    Left e  -> throwIO CurlAesonException{parseError = Just e, ..}
+    Right x -> pure x
+
+-- |HTTP JSON request often needs these options.
+jsonOpts :: [CurlOption]
+jsonOpts = [CurlHttpHeaders ["Content-type: application/json"]]
 
 -- | Helper function for writing parsers for JSON objects which are
 -- not needed to be parsed completely.
@@ -128,7 +181,7 @@ rawJson :: ByteString -> Maybe Value
 rawJson = decode
 
 -- |To avoid ambiguity in type checker you may pass this value instead
--- of Nothing to 'curlAeson'.
+-- of Nothing to 'curlAesonCustom'.
 noData :: Maybe Value
 noData = Nothing
 
@@ -138,12 +191,16 @@ data CurlAesonException = CurlAesonException
   { url        :: URLString    -- ^The request URI
   , curlCode   :: CurlCode     -- ^Curl return code
   , curlOpts   :: [CurlOption] -- ^Curl options set
-  , received   :: ByteString   -- ^Received data from the server. Before
-                               -- version 0.1 the type was 'String'.
-  , errorMsg   :: String       -- ^Error message
+  , received   :: ByteString   -- ^Received raw data from the
+                               -- server. Before version 0.1 the type
+                               -- was 'Prelude.String'.
+  , parseError :: Maybe String -- ^Parse error, if it failed during parse.
   } deriving (Show)
 
 instance Exception CurlAesonException
+
+-- |Parser type from response to your data. Normally: 'eitherDecode'
+type CurlAesonParser a = ByteString -> Either String a
 
 -- $use
 --
