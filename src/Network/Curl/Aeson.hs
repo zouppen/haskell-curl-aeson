@@ -32,11 +32,11 @@ import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types
 import Data.ByteString.Lazy (ByteString)
-import Data.ByteString.Lazy.UTF8 (toString)
 import Data.Maybe
 import Data.Text (Text)
 import Data.Typeable
 import Network.Curl
+import Network.Curl.Aeson.Internal
 
 -- | Shorthand for doing just a HTTP GET request and parsing the output to
 -- any FromJSON instance.
@@ -71,7 +71,15 @@ curlAeson ::
                          -- sending request without any content.
   -> IO b                -- ^ Received JSON data
 curlAeson parser method url extraOpts maybeContent = do
-  (curlCode,received) <- curlGetString_ url curlOpts
+  putOpts <- case maybeContent of
+    Nothing -> pure []
+    Just a -> do
+      readFunc <- mkReadFunctionLazy $ encode a
+      pure [ CurlReadFunction readFunc
+           , CurlHttpHeaders ["Content-type: application/json"]
+           ]
+  let curlOpts = [CurlCustomRequest method] <> putOpts <> extraOpts
+  (curlCode,received) <- curlGetString_ url $ curlOpts
   when (curlCode /= CurlOK) $ throw CurlAesonException{errorMsg="HTTP error",..}
   let ast = case decode received of
         Nothing -> throw CurlAesonException{errorMsg="JSON parsing failed",..}
@@ -79,14 +87,6 @@ curlAeson parser method url extraOpts maybeContent = do
   return $ case parseEither parser ast of
     Left errorMsg -> throw CurlAesonException{..}
     Right x -> x
-  where
-    curlOpts = commonOpts <> dataOpts <> extraOpts
-    commonOpts = [CurlCustomRequest method]
-    dataOpts = case maybeContent of
-      Nothing -> []
-      Just a  -> [CurlPostFields [toString $ encode a]
-                 ,CurlHttpHeaders ["Content-type: application/json"]
-                 ]
 
 -- | Helper function for writing parsers for JSON objects which are
 -- not needed to be parsed completely.
