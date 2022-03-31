@@ -142,10 +142,10 @@ curlAesonRaw method url userOpts maybePayload parser = do
     Nothing -> pure userOpts
     Just Payload{..} -> do
       readFunc <- mkReadFunctionLazy payload
-      pure $ CurlReadFunction readFunc : CurlUpload True : mergeHeaders
-        [ "Content-Length: " <> show (B.length payload)
-        , "Content-Type: " <> contentType
-        ] userOpts
+      pure $ CurlReadFunction readFunc :
+             CurlUpload True :
+             CurlInFileSizeLarge (fromIntegral $ B.length payload) :
+             mergeHeaders [ "Content-Type: " <> contentType ] userOpts
   -- Add request method
   let curlOpts = CurlCustomRequest method : putOpts
   -- Perform the request
