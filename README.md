@@ -16,24 +16,30 @@ compliant client or server, take a look at
 
 ## Example
 
-In this example we fetch latest bid and ask values from a Bitcoin
-exchange using
-[their public API](https://github.com/paytunia/api-documentation#read-the-ticker):
+Let's simulate a ticker service by creating a file `/tmp/ticker.json`
+with the following content:
+
+```json
+{"bid":3,"ask":3.14}
+```
+
+We then define our own data type and define a function which reads the
+payload from the service:
 
 ```haskell
-{-# LANGUAGE OverloadedStrings #-}
-import Control.Monad
+{-# LANGUAGE DeriveGeneric #-}
+import GHC.Generics
 import Data.Aeson
 import Network.Curl.Aeson
 
-ticker :: IO (Double,Double)
-ticker = curlAesonGetWith p "https://bitcoin-central.net/api/v1/ticker/eur"
-  where
-    p (Object o) = do
-      bid <- o .: "bid"
-      ask <- o .: "ask"
-      return (bid,ask)
-    p _ = mzero
+data Ticker = Ticker { bid :: Double
+                     , ask :: Double
+                     } deriving (Generic, Show)
+
+instance FromJSON Ticker
+
+ticker :: IO Ticker
+ticker = curlAesonGet "file:///tmp/ticker.json"
 ```
 
 You may find more examples from package documentation.
