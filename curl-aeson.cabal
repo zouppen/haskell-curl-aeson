@@ -18,7 +18,7 @@ description:         A library for communicating with JSON over HTTP
                      take a look at
                      <http://hackage.haskell.org/package/jmacro-rpc>.
 category:            Network, Web, JSON
-license:             BSD-3-Clause
+license:             BSD3
 license-file:        LICENSE
 author:              Joel Lehtonen
 maintainer:          joel.lehtonen+curlaeson@iki.fi
