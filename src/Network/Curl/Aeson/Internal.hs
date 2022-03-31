@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- |
--- Module    : Network.Curl.Aeson
+-- Module    : Network.Curl.Aeson.Internal
 -- Copyright : (c) 2022, Joel Lehtonen
 -- License   : BSD3
 --
@@ -8,9 +8,11 @@
 -- Stability : experimental
 -- Portability: portable
 --
--- Internal support functions to get ByteString payload out of
+-- Internal support functions to for uploading ByteString payload with
 -- libcurl.
-module Network.Curl.Aeson.Internal where
+module Network.Curl.Aeson.Internal ( mkReadFunction
+                                   , mkReadFunctionLazy
+                                   ) where
 
 import Data.IORef
 import qualified Data.ByteString as B
