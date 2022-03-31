@@ -125,10 +125,16 @@ curlAesonCustom opts method url maybeValue =
   curlAesonRaw eitherDecode opts method url
   (maybeValue >>= jsonPayload)
 
--- |Sends raw cURL request with a possible payload and collects the
--- output. When /payload/ is given, cURL options CurlReadFunction and
--- CurlUpload are set and HTTP headers Content-Length and Content-Type
--- are appended.
+-- |The most flexible function we have here.
+--
+-- Sends raw cURL request with a possible payload and collects the
+-- output. This function is binary safe so it works with other media
+-- types than JSON and supports binary upload and JSON response
+-- (common case with media uploads).
+--
+-- When /payload/ is given, cURL options 'CurlReadFunction',
+-- 'CurlUpload' and 'CurlInFileSizeLarge' are set and HTTP header
+-- Content-Type is appended implicitly.
 curlAesonRaw
   :: ResponseParser a    -- ^ Parser function for the response such as 'eitherDecode'
   -> [CurlOption]        -- ^ Extra curl options.
@@ -228,7 +234,7 @@ noData = Nothing
 
 -- |Holds the payload for raw sender.
 data Payload = Payload
-  { contentType :: String      -- ^Content MIME type
+  { contentType :: String      -- ^Content media type (MIME)
   , payload     :: ByteString  -- ^Data
   } deriving (Show)
 
