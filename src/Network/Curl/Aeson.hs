@@ -59,7 +59,7 @@ import Network.Curl.Aeson.Internal
 curlAesonGet :: (FromJSON a)
   => URLString -- ^ Request URL
   -> IO a      -- ^ Received and parsed data
-curlAesonGet url = curlAesonCustom "GET" url [] noData
+curlAesonGet url = curlAesonCustom [] "GET" url noData
 
 -- | Shorthand for doing just a HTTP GET request and parsing the
 -- output with given parser /p/.
@@ -68,7 +68,7 @@ curlAesonGetWith
                          -- you want it in AST format.
   -> URLString           -- ^Request URL
   -> IO a                -- ^Received and parsed data
-curlAesonGetWith p url = curlAesonCustomWith p "GET" url [] noData
+curlAesonGetWith p url = curlAesonCustomWith p [] "GET" url noData
 
 -- | Send a single HTTP request and a custom parser.
 -- 
@@ -83,23 +83,24 @@ curlAesonCustomWith
   :: (ToJSON a)
   => (Value -> Parser b) -- ^ Aeson parser for response. Use
                          -- 'pure' if you want it in AST format.
-  -> String              -- ^ Request method
-  -> URLString           -- ^ Request URL
   -> [CurlOption]        -- ^ Session cookies, or other cURL
                          -- options. Use 'mempty' if you don't need
                          -- any.
+  -> String              -- ^ Request method
+  -> URLString           -- ^ Request URL
   -> Maybe a             -- ^ JSON data to send, or 'Nothing' when
                          -- sending request without any content.
   -> IO b                -- ^ Received and parsed data
-curlAesonCustomWith parser method url extraOpts maybeValue =
-  curlAesonRaw method url extraOpts
-  (maybeValue >>= jsonPayload)
+curlAesonCustomWith parser opts method url maybeValue =
+  curlAesonRaw
   (\x -> eitherDecode x >>= parseEither parser)
+  opts method url
+  (maybeValue >>= jsonPayload)
 
 {-# DEPRECATED curlAeson "Use customAesonCustomWith instead" #-}
 -- |See type of 'curlAesonCustomWith'.
 curlAeson :: ToJSON a => (Value -> Parser b) -> String -> URLString -> [CurlOption] -> Maybe a -> IO b
-curlAeson = curlAesonCustomWith
+curlAeson parser method url opts = curlAesonCustomWith parser opts method url
 
 -- | Send a single cURL request.
 --
@@ -112,31 +113,30 @@ curlAeson = curlAesonCustomWith
 -- other means of authentication tokens via 'CurlOption' list.
 curlAesonCustom ::
   (ToJSON a, FromJSON b)
-  => String              -- ^ Request method
-  -> URLString           -- ^ Request URL
-  -> [CurlOption]        -- ^ Session cookies, or other cURL
+  => [CurlOption]        -- ^ Session cookies, or other cURL
                          -- options. Use 'mempty' if you don't need
                          -- any.
+  -> String              -- ^ Request method
+  -> URLString           -- ^ Request URL
   -> Maybe a             -- ^ JSON data to send, or 'Nothing' when
                          -- sending request without any content.
   -> IO b                -- ^ Received and parsed data
-curlAesonCustom method url extraOpts maybeValue =
-  curlAesonRaw method url extraOpts
+curlAesonCustom opts method url maybeValue =
+  curlAesonRaw eitherDecode opts method url
   (maybeValue >>= jsonPayload)
-  eitherDecode
 
 -- |Sends raw cURL request with a possible payload and collects the
 -- output. When /payload/ is given, cURL options CurlReadFunction and
 -- CurlUpload are set and HTTP headers Content-Length and Content-Type
 -- are appended.
 curlAesonRaw
-  :: String              -- ^ Request method
-  -> URLString           -- ^ Request URL
+  :: ResponseParser a    -- ^ Parser function for the response such as 'eitherDecode'
   -> [CurlOption]        -- ^ Extra curl options.
+  -> String              -- ^ Request method
+  -> URLString           -- ^ Request URL
   -> Maybe Payload       -- ^ Request body payload, if any.
-  -> ResponseParser a    -- ^ Parser function for the response such as 'eitherDecode'
   -> IO a                -- ^ Received and parsed data
-curlAesonRaw method url userOpts maybePayload parser = do
+curlAesonRaw parser userOpts method url maybePayload = do
   -- Prepare the upload
   putOpts <- case maybePayload of
     Nothing -> pure userOpts
