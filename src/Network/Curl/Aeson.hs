@@ -195,7 +195,7 @@ binaryPayload a b = Just $ Payload a b
 -- @
 (...) :: FromJSON b
          => Parser Object -- ^ Parser to JSON object to look into
-         -> Text          -- ^ Key to look for
+         -> Key          -- ^ Key to look for
          -> Parser b      -- ^ Parser to the resulting field
 (...) p s = do
   o <- p
