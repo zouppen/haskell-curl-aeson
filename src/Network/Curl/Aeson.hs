@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE CPP, RecordWildCards #-}
 -- |
 -- Module    : Network.Curl.Aeson
 -- Copyright : (c) 2013-2022, Joel Lehtonen
@@ -45,6 +45,9 @@ module Network.Curl.Aeson
 import Control.Exception
 import Control.Monad
 import Data.Aeson
+#if MIN_VERSION_aeson(2,0,0)
+import Data.Aeson.Key (fromText)
+#endif
 import Data.Aeson.Types
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
@@ -199,7 +202,11 @@ binaryPayload a b = Just $ Payload a b
          -> Parser b      -- ^ Parser to the resulting field
 (...) p s = do
   o <- p
-  o .: s
+  o .: fromText s
+#if !MIN_VERSION_aeson(2,0,0)
+  where
+    fromText = id
+#endif
 
 -- Precedence should be higher than >> and >>= but lower than ++
 infixl 4 ...
