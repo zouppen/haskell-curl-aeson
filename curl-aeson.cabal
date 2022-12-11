@@ -1,6 +1,6 @@
 cabal-version:       >=1.10
 name:                curl-aeson
-version:             0.1.0.1
+version:             0.1.0.2
 synopsis:            Communicate with web services using JSON 
 description:         A library for communicating with JSON over HTTP(S)
                      or any other protocols supported by cURL.

@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE CPP, RecordWildCards #-}
 -- |
 -- Module    : Network.Curl.Aeson
 -- Copyright : (c) 2013-2022, Joel Lehtonen
@@ -53,6 +53,11 @@ import Data.Text (Text)
 import Data.Typeable
 import Network.Curl
 import Network.Curl.Aeson.Internal
+
+#if !MIN_VERSION_aeson(2,0,0)
+-- Backwards compatibility with older versions of aeson library
+type Key = Text
+#endif
 
 -- | Shorthand for doing just a HTTP GET request and parsing the output to
 -- any 'FromJSON' instance.
@@ -187,7 +192,7 @@ binaryPayload a b = Just $ Payload a b
 --
 -- In this example we are parsing JSON from
 -- <http://json.org/example.html>.  Note the use of the
--- @OverloadedStrings@ language extension which enables 'Text' values
+-- @OverloadedStrings@ language extension which enables 'Key' values
 -- to be written as string literals.
 --
 -- @p ('Data.Aeson.Types.Internal.Object' o) = 'pure' o'...'\"glossary\"'...'\"title\"
@@ -195,7 +200,7 @@ binaryPayload a b = Just $ Payload a b
 -- @
 (...) :: FromJSON b
          => Parser Object -- ^ Parser to JSON object to look into
-         -> Text          -- ^ Key to look for
+         -> Key           -- ^ Key to look for
          -> Parser b      -- ^ Parser to the resulting field
 (...) p s = do
   o <- p
